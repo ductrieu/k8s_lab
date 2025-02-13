@@ -1,0 +1,6 @@
+---
+# defaults file for k8s_pre_setup
+k8s_registry: 10.60.129.132:8890
+k8s_data_root: /u01/k8s
+docker_version: 5:27.2.1-1~ubuntu.22.04~jammy
+user: vt_admin

@@ -1,0 +1,11 @@
+- name: k8s_setup_rke
+  hosts: rancher
+  become_user: root
+  remote_user: vt_admin
+  become: yes
+  gather_facts: no
+
+  tasks:
+    - name: k8s_setup_rke
+      include_role:
+        name: k8s_setup_rke

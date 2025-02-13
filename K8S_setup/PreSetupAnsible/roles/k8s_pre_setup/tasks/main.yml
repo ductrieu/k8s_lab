@@ -1,0 +1,83 @@
+---
+# tasks file for k8s_pre_setup
+# Evirontment ubuntu 22.04
+
+#Get current date
+- name: Get current date
+  set_fact:
+    date: "{{ now | strftime('%Y-%m-%d') }}"
+
+# Add rule iptable open all port for 10.0.0.0/8 input and output, tcp and udp via cli 
+- name: Add rule iptable open all port for 10.0.0.0/8 via cli
+  shell: |
+    sudo iptables-save > /etc/iptables/rules.v4_{{ date }}_before_k8s_setup
+    sudo iptables -A INPUT -s 10.0.0.0/8 -j ACCEPT
+    sudo iptables -A OUTPUT -d 10.0.0.0/8 -j ACCEPT
+    sudo iptables-save > /etc/iptables/rules.v4_{{ date }}_after_k8s_setup
+
+# Add docker private repo to /etc/apt/source.list
+- name: Add docker private repo to /etc/apt/source.list
+  template:
+    src: templates/docker.list.j2
+    dest: /etc/apt/sources.list
+    owner: root
+    group: root
+    mode: 0644
+
+# Copy GPG key to /usr/share/keyrings/docker-archive-keyring.gpg and add permission a+r
+- name: Copy files/docker-archive-keyrin.gpg key to /usr/share/keyrings/docker-archive-keyring.gpg
+  ansible.builtin.copy:
+    src: files/docker-archive-keyring.gpg
+    dest: /usr/share/keyrings/docker-archive-keyring.gpg
+    owner: root
+    group: root
+    mode: 0644
+  
+
+- name: Install docker-ce and docker-ce-cli
+  apt:
+    pkg:
+      - docker-ce={{ docker_version }}
+      - docker-ce-cli={{ docker_version }}
+      - containerd.io
+    update_cache: true
+
+#add user to group docker
+- name: add user to group docker
+  user:
+    name: vt_admin
+    group: docker
+    state: present
+
+# add permission 777 to /var/run/docker.sock
+- name: add permission 777 to /var/run/docker.sock
+  file:
+    path: /var/run/docker.sock
+    owner: vt_admin
+    group: docker
+    mode: 1777
+
+
+# check directory /u01/k8s if not exist then create
+- name: create k8s directory at /u01/k8s
+  file:
+    path: /u01/k8s
+    state: directory
+    owner: vt_admin
+    group: docker
+    mode: 0777 
+
+# create docker daemon.json at /etc/docker/daemon.json
+- name: create docker daemon.json at /etc/docker/daemon.json
+  template:
+    src: templates/daemon.json.j2
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: docker
+    mode: 0644
+
+# restart docker service
+- name: restart docker service
+  service:
+    name: docker
+    state: restarted
